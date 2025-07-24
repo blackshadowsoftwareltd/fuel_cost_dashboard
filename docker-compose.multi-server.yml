@@ -1,0 +1,55 @@
+version: '3.8'
+
+services:
+  # Reverse Proxy (Main entry point)
+  nginx-proxy:
+    image: nginx:alpine
+    container_name: fuel_reverse_proxy
+    restart: unless-stopped
+    ports:
+      - "80:80"
+    volumes:
+      - ./nginx-proxy.conf:/etc/nginx/nginx.conf:ro
+    networks:
+      - fuel-network
+    depends_on:
+      - fuel-dashboard
+      - fuel-api
+
+  # Dashboard Service
+  fuel-dashboard:
+    build:
+      context: .
+      dockerfile: Dockerfile.nginx
+    container_name: fuel_cost_dashboard
+    restart: unless-stopped
+    expose:
+      - "80"
+    volumes:
+      - ./nginx.conf:/etc/nginx/nginx.conf:ro
+      - ./index.html:/usr/share/nginx/html/index.html:ro
+    networks:
+      - fuel-network
+
+  # API Service (Your existing Rust backend)
+  fuel-api:
+    build:
+      context: .
+      dockerfile: Dockerfile
+    container_name: fuel_cost_api
+    restart: unless-stopped
+    expose:
+      - "8880"
+    volumes:
+      - fuel_data:/data
+    networks:
+      - fuel-network
+    environment:
+      - RUST_LOG=info
+
+volumes:
+  fuel_data:
+
+networks:
+  fuel-network:
+    driver: bridge

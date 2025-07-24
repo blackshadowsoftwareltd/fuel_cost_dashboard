@@ -1,22 +1,24 @@
 #!/bin/bash
 
-# Fuel Cost Dashboard Deployment Script
+# Multi-Server Fuel Cost Dashboard Deployment Script
 # VPS IP: 159.198.32.51
-# Site URL: fuelcost_dashboard.blackshadow.software
+# Dashboard URL: fuelcost_dashboard.blackshadow.software
+# API URL: fuelcost.blackshadow.software
 
 set -e
 
-echo "🚀 Starting Fuel Cost Dashboard deployment..."
+echo "🚀 Starting Multi-Server Fuel Cost deployment..."
 
 # Configuration
 VPS_IP="159.198.32.51"
-PROJECT_NAME="fuel_cost_dashboard"
-SITE_URL="fuelcost_dashboard.blackshadow.software"
+DASHBOARD_URL="fuelcost_dashboard.blackshadow.software"
+API_URL="fuelcost.blackshadow.software"
 
 # Colors for output
 RED='\033[0;31m'
 GREEN='\033[0;32m'
 YELLOW='\033[1;33m'
+BLUE='\033[0;34m'
 NC='\033[0m' # No Color
 
 # Function to print colored output
@@ -32,9 +34,13 @@ print_error() {
     echo -e "${RED}[ERROR]${NC} $1"
 }
 
+print_info() {
+    echo -e "${BLUE}[DEPLOY]${NC} $1"
+}
+
 # Check if required files exist
 print_status "Checking required files..."
-required_files=("index.html" "Dockerfile.nginx" "nginx.conf" "docker-compose.dashboard.yml")
+required_files=("index.html" "Dockerfile.nginx" "Dockerfile" "nginx.conf" "nginx-proxy.conf" "docker-compose.multi-server.yml")
 
 for file in "${required_files[@]}"; do
     if [[ ! -f "$file" ]]; then
@@ -45,42 +51,74 @@ done
 
 print_status "All required files found ✓"
 
-# Create docker network if it doesn't exist
-print_status "Creating Docker network..."
-docker network create fuel-network 2>/dev/null || print_warning "Network fuel-network already exists"
+# Show current running containers
+print_info "Current running containers:"
+docker ps --format "table {{.Names}}\t{{.Image}}\t{{.Ports}}\t{{.Status}}"
 
-# Stop existing container if running
-print_status "Stopping existing containers..."
-docker-compose -f docker-compose.dashboard.yml down 2>/dev/null || true
+echo ""
+print_warning "This will deploy all servers using a reverse proxy setup:"
+echo "  📊 Dashboard: http://${DASHBOARD_URL}"
+echo "  🔌 API:       http://${API_URL}"
+echo "  🌐 Both accessible on port 80 simultaneously"
+echo "  ✅ Your existing servers will continue running"
+echo ""
 
-# Build and start the dashboard
-print_status "Building Docker image..."
-docker-compose -f docker-compose.dashboard.yml build --no-cache
-
-print_status "Starting the dashboard..."
-docker-compose -f docker-compose.dashboard.yml up -d
-
-# Wait for container to be ready
-print_status "Waiting for container to be ready..."
-sleep 5
-
-# Check if container is running
-if docker ps | grep -q fuel_cost_dashboard; then
-    print_status "✅ Dashboard deployed successfully!"
-    echo ""
-    echo "🌐 Dashboard URL: http://${SITE_URL}"
-    echo "🌐 Local access: http://localhost"
-    echo "🐳 Container: fuel_cost_dashboard"
-    echo ""
-    print_status "Container status:"
-    docker ps | grep fuel_cost_dashboard
-    echo ""
-    print_status "To view logs: docker logs fuel_cost_dashboard"
-    print_status "To stop: docker-compose -f docker-compose.dashboard.yml down"
-else
-    print_error "❌ Deployment failed! Container is not running."
-    print_error "Check logs with: docker logs fuel_cost_dashboard"
+read -p "Continue with deployment? (y/N): " -n 1 -r
+echo
+if [[ ! $REPLY =~ ^[Yy]$ ]]; then
+    print_error "Deployment cancelled by user"
     exit 1
 fi
 
-print_status "🎉 Deployment completed successfully!"
+# Stop any existing deployment
+print_status "Stopping existing fuel cost services..."
+docker-compose -f docker-compose.multi-server.yml down 2>/dev/null || true
+docker-compose -f docker-compose.dashboard.yml down 2>/dev/null || true
+
+# Create docker network if it doesn't exist
+print_status "Setting up Docker network..."
+docker network create fuel-network 2>/dev/null || print_warning "Network fuel-network already exists"
+
+# Build and start all services
+print_status "Building Docker images..."
+docker-compose -f docker-compose.multi-server.yml build --no-cache
+
+print_status "Starting all services..."
+docker-compose -f docker-compose.multi-server.yml up -d
+
+# Wait for containers to be ready
+print_status "Waiting for services to be ready..."
+sleep 10
+
+# Check if all containers are running
+print_status "Checking service status..."
+running_containers=$(docker-compose -f docker-compose.multi-server.yml ps --services --filter "status=running" | wc -l)
+total_services=3
+
+if [ "$running_containers" -eq "$total_services" ]; then
+    print_status "✅ All services deployed successfully!"
+    echo ""
+    echo "🌐 Your applications are now accessible:"
+    echo "  📊 Dashboard: http://${DASHBOARD_URL}"
+    echo "  🔌 API:       http://${API_URL}"
+    echo "  🖥️  Local:     http://localhost (will route based on domain)"
+    echo ""
+    print_info "Service containers:"
+    docker-compose -f docker-compose.multi-server.yml ps
+    echo ""
+    print_status "Useful commands:"
+    echo "  📋 View logs:      docker-compose -f docker-compose.multi-server.yml logs -f"
+    echo "  🔄 Restart:        docker-compose -f docker-compose.multi-server.yml restart"
+    echo "  🛑 Stop all:       docker-compose -f docker-compose.multi-server.yml down"
+    echo "  📊 View status:    docker-compose -f docker-compose.multi-server.yml ps"
+else
+    print_error "❌ Some services failed to start!"
+    print_error "Running containers: $running_containers/$total_services"
+    echo ""
+    print_error "Check logs for issues:"
+    docker-compose -f docker-compose.multi-server.yml logs
+    exit 1
+fi
+
+print_status "🎉 Multi-server deployment completed successfully!"
+print_info "Both your dashboard and API are now running simultaneously on port 80!"
