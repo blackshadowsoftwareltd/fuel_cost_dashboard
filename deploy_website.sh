@@ -14,6 +14,26 @@ VPS_IP="159.198.32.51"
 DASHBOARD_URL="fuelcost_dashboard.blackshadow.software"
 API_URL="fuelcost.blackshadow.software"
 
+# Check and fix conflicting services
+print_status "Checking for conflicting services..."
+
+# Stop conflicting Node.js service if running
+if systemctl is-active --quiet fuel_cost_dashboard.service 2>/dev/null; then
+    print_warning "Stopping conflicting fuel_cost_dashboard.service..."
+    sudo systemctl stop fuel_cost_dashboard.service
+    sudo systemctl disable fuel_cost_dashboard.service
+    print_status "Conflicting service stopped"
+fi
+
+# Check port 8890 usage
+port_usage=$(sudo netstat -tlnp | grep :8890 || echo "")
+if [ ! -z "$port_usage" ]; then
+    print_warning "Port 8890 is still in use:"
+    echo "$port_usage"
+else
+    print_status "Port 8890 is free"
+fi
+
 # Colors for output
 RED='\033[0;31m'
 GREEN='\033[0;32m'
