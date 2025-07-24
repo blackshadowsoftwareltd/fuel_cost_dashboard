@@ -1,0 +1,20 @@
+version: '3.8'
+
+services:
+  fuel-dashboard:
+    build:
+      context: .
+      dockerfile: Dockerfile.nginx
+    container_name: fuel_cost_dashboard
+    restart: unless-stopped
+    ports:
+      - "80:80"
+    volumes:
+      - ./nginx.conf:/etc/nginx/nginx.conf:ro
+      - ./index.html:/usr/share/nginx/html/index.html:ro
+    networks:
+      - fuel-network
+
+networks:
+  fuel-network:
+    external: true
