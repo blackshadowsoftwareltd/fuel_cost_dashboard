@@ -40,7 +40,7 @@ print_info() {
 
 # Check if required files exist
 print_status "Checking required files..."
-required_files=("index.html" "Dockerfile.nginx" "Dockerfile" "nginx.conf" "nginx-proxy.conf" "docker-compose.multi-server.yml")
+required_files=("index.html" "Dockerfile.nginx" "nginx.conf" "nginx-proxy.conf" "docker-compose.multi-server.yml")
 
 for file in "${required_files[@]}"; do
     if [[ ! -f "$file" ]]; then
@@ -93,7 +93,7 @@ sleep 10
 # Check if all containers are running
 print_status "Checking service status..."
 running_containers=$(docker-compose -f docker-compose.multi-server.yml ps --services --filter "status=running" | wc -l)
-total_services=3
+total_services=2
 
 if [ "$running_containers" -eq "$total_services" ]; then
     print_status "✅ All services deployed successfully!"

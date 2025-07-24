@@ -14,7 +14,6 @@ services:
       - fuel-network
     depends_on:
       - fuel-dashboard
-      - fuel-api
 
   # Dashboard Service
   fuel-dashboard:
@@ -31,21 +30,9 @@ services:
     networks:
       - fuel-network
 
-  # API Service (Your existing Rust backend)
-  fuel-api:
-    build:
-      context: .
-      dockerfile: Dockerfile
-    container_name: fuel_cost_api
-    restart: unless-stopped
-    expose:
-      - "8880"
-    volumes:
-      - fuel_data:/data
-    networks:
-      - fuel-network
-    environment:
-      - RUST_LOG=info
+  # API Service (Connect to your existing API)
+  # Note: Your existing API should be running separately
+  # The reverse proxy will route fuelcost.blackshadow.software to your existing API
 
 volumes:
   fuel_data:
