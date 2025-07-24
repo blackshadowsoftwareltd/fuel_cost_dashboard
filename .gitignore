@@ -1,0 +1,15 @@
+/target
+*.lock
+
+# Database file
+fuel_cost.db
+
+# IDE files
+.vscode/
+.idea/
+
+# OS files
+.DS_Store
+Thumbs.db
+fuel_cost.db
+*.log
